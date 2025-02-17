@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -140,29 +141,89 @@ namespace util
 		/// If asMap is true, returns a Dictionary mapping keys to lists.
 		/// Otherwise, returns a List of UnqGroup objects (each having Key and List properties).
 		/// </summary>
-		public static object UNQ<T, TKey>(this IEnumerable<T> source, Func<T, TKey> key_fn, bool as_map = false)
+		public static object UNQ<T, TKey>(this IEnumerable<T> LIST, Func<T, TKey> key_fn, bool as_map = false)
 		{
-			var groups = source.GroupBy(key_fn).ToDictionary(g => g.Key, g => g.ToList());
-			if (as_map)
+			var groups = LIST.GroupBy(key_fn).ToDictionary(g => g.Key, g => g.ToList());
+			if (as_map == true)
 				return groups;
 			else
-				return groups.Select(g => new LIST<TKey, T>
+				return groups.Select(g => new unq<TKey, T>
 				{
 					Key = g.Key,
-					List = g.Value
+					LIST = g.Value
 				}).ToList();
 		}
 
 		/// <summary>
 		/// Helper class used by UNQ to represent a group.
 		/// </summary>
-		public class LIST<TKey, T>
+		public class unq<TKey, T>
 		{
 			public TKey Key { get; set; }
-			public List<T> List { get; set; }
+			public List<T> LIST { get; set; }
+		}
+
+
+		/// <summary>
+		/// get elements inside a LIST to log 
+		/// </summary>
+		public static string get_str<T>(this List<T> LIST, string name = "LIST")
+		{
+			if (LIST == null || LIST.Count == 0) return "LIST.count = 0";
+
+			Type type = typeof(T);
+			bool is_simple_type(Type _type) => _type.IsPrimitive || _type.IsEnum  || _type == typeof(string)  || _type == typeof(float) || _type == typeof(long)  || _type == typeof(int);
+
+
+			var sb = new StringBuilder();
+			sb.Append($"{name}:\n");
+			for (int i = 0; i < LIST.Count; i += 1)
+			{
+				T element = LIST[i];
+				sb.Append($"\t{i}__");
+
+				if (element == null) { sb.AppendLine("~ "); continue; }
+
+				// Handle primitives(bool, int, long, string, float), enums types
+				if (is_simple_type(type))
+					sb.AppendLine(element.ToString());
+				// Handle classes, structs, and complex types
+				else
+					sb.AppendLine(get_ref_type_str(element));
+			}
+
+			return sb.ToString();
+		}
+		static string get_ref_type_str<T>(T element)
+		{
+			var sb = new StringBuilder(" ");
+			Type type = element.GetType();
+
+			// Get public properties and fields
+			PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+			FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
+
+			// prop name
+			foreach (var prop in properties)
+			{
+				object value = prop.GetValue(element);
+				sb.Append($"{prop.Name}: {value?.ToString() ?? "~"}, ");
+			}
+
+			// prop val
+			foreach (var field in fields)
+			{
+				object value = field.GetValue(element);
+				sb.Append($"{field.Name}: {value?.ToString() ?? "~"}, ");
+			}
+
+			if (properties.Length > 0 || fields.Length > 0)
+				sb.Length -= 2; // Remove trailing comma and space
+
+			sb.Append(" ");
+			return sb.ToString();
 		}
 	}
-
 
 	public static class U
 	{
@@ -172,9 +233,25 @@ namespace util
 			if (x < 0f) return (int)x - 1;
 			return (int)x;
 		}
-
+		// round
+		public static int round(float x)
+		{
+			int x_I = (int)x;
+			float frac = x - (int)x;
+			if (x < 0)
+			{
+				if (frac < -0.5f) return x_I - 1;
+				else			  return x_I;
+			}
+			else
+			{
+				if (frac > +0.5f) return x_I + 1;
+				else			  return x_I;
+			}
+		}
 
 		// get next pseudo random: gnpr
+		// var pr = new U.xoro128(seed: 1); // pr.get_npr()
 		public class xoro128
 		{
 			public ulong[] seed = new ulong[2];
@@ -185,7 +262,7 @@ namespace util
 			}
 
 			// get pseudo random
-			public int get_pr(int min = 0, int max = 100)
+			public int get_npr(int min = 0, int max = 100)
 			{
 				ulong rl(ulong val, int bits) => (val << bits) | (val >> (64 - bits));
 
@@ -214,6 +291,40 @@ namespace util
 	public static class ITER
 	{
 
+		public static List<string> permutations(string input)
+		{
+			var _UNQ = input
+								.GroupBy(c => c)
+								.ToDictionary(g => g.Key, g => g.Count());
+
+
+			var STR = new List<string>();
+			// recursive seq approach, with backtrack for UNQ
+			void recursive(string seq, int remaining, Dictionary<char, int> UNQ)
+			{
+				// success return
+				if (remaining == 0)
+				{
+					STR.Add(seq);
+					return;
+				}
+
+				foreach (var key in UNQ.Keys.ToList())
+				{
+					if (UNQ[key] > 0)
+					{
+						UNQ[key] -= 1;
+						recursive(seq + key, remaining - 1, UNQ);
+						UNQ[key] += 1;
+					}
+				}
+			}
+
+			recursive("", input.Length, _UNQ);
+			return STR;
+		}
+
+
 		public static int iter = 0;
 		public static bool iter_inc(int max = 100)
 		{
@@ -233,7 +344,7 @@ namespace util
 			string combined = string.Join("__", MSSG.Select(m => m?.ToString() ?? "no str conv"));
 			if (log_mode == "txt")
 			{
-				string timestamp = $"--{System.DateTime.Now:HH:mm:ss}";
+				string timestamp = $"@ {System.DateTime.Now:HH:mm:ss}";
 				log_txt_str += $"{combined}\n{" ".repeat(45)}{timestamp} \n\n";
 			}
 			else

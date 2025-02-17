@@ -1,9 +1,11 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using util; 
-using UnityEngine;
 using System.Threading.Tasks;
+
+using util;
+using SPACE_OBJECT;
+using UnityEngine;
 
 public class DEBUG_util : MonoBehaviour
 {
@@ -63,6 +65,21 @@ public class DEBUG_util : MonoBehaviour
 		}
 		*/
 		#endregion
+		Cam.Init();
+
+
+		var A = new List<int>()
+		{ 0, 1, 2, 3, 4, };
+
+		var B = new List<Elem>()
+		{ new Elem(), new Elem(), };
+
+		console.log_mode = "txt";
+		console.log(A.get_str("A"));
+		console.log(B.get_str("B"));
+
+		var pr = new U.xoro128(121);
+		console.log(pr.get_npr()); // get next pseudo random
 
 		for (float t = 0f; t < 1f; t += 1f * dt * 0.001f)
 		{
@@ -76,8 +93,25 @@ public class DEBUG_util : MonoBehaviour
 		}
 		console.log("=done= routine", console.time);
 
-		//console.LOG_txt();
+		console.LOG_txt();
 		//yield return null;
+
+		/*
+		checked >> Cam.pos2D
+		while(true)
+		{
+			console.log(Cam.pos2D);
+			yield return null;
+		}
+		*/
+	}
+
+	//check LIST.get_str
+	public class Elem
+	{
+		public int a = 0;
+		public string b = "ab";
+		public Elem elem = null;
 	}
 
 	public int dt = 16;
