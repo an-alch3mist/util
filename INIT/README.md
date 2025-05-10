@@ -23,18 +23,11 @@ namespace SPACE_0
 			);
 
 			LOG.INITIALIZE();
-			// GameData.LoadGame();
 		}
 
-		// check >>
-
-		// << check
-
-		// [SerializeField] GameData gameData = null;
 		private void OnApplicationQuit()
 		{
-			// gameData = null/Empty => do nothing
-			// GameData.SaveGame(gameData);
+
 		}
 	}
 }
